@@ -1,0 +1,6 @@
+__pycache__/
+.DS_Store
+
+# dataset (download instructions in reference/README.md) and model weights
+data/
+*.pth
