@@ -4,3 +4,7 @@ __pycache__/
 # dataset (download instructions in reference/README.md) and model weights
 data/
 *.pth
+
+# generated experiment outputs (runs, review sheets)
+reference/runs/
+reference/review/
