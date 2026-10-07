@@ -15,13 +15,13 @@ AUGS = {
     "geo": [
         v2.RandomResizedCrop((SIZE, SIZE), scale=(0.5, 1.0), antialias=True),
         v2.RandomHorizontalFlip(),
-        v2.RandomRotation(15),
+        v2.RandomRotation((-15, 15)),
     ],
     # Run B: Run A + photometric, for other cameras and lighting
     "geo_color": [
         v2.RandomResizedCrop((SIZE, SIZE), scale=(0.5, 1.0), antialias=True),
         v2.RandomHorizontalFlip(),
-        v2.RandomRotation(15),
+        v2.RandomRotation((-15, 15)),
         v2.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.05),
         v2.RandomGrayscale(p=0.1),
         v2.RandomApply([v2.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))], p=0.2),

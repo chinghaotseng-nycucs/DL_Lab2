@@ -71,7 +71,7 @@ def load_mask(image_id):
 
 def preprocess(img):
     """Official inference preprocessing: squash to 256x256, [0, 1], ImageNet normalisation."""
-    x = TF.resize(img, [SIZE, SIZE])
+    x: Image.Image = TF.resize(img, [SIZE, SIZE])  # type: ignore[assignment]  # PIL in -> PIL out
     return TF.normalize(TF.to_tensor(x), MEAN, STD)
 
 
