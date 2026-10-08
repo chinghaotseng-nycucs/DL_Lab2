@@ -28,10 +28,16 @@ def parse_args():
     p.add_argument("--batch-size", type=int, default=16)
     p.add_argument("--lr", type=float, default=1e-3)
     p.add_argument("--weight-decay", type=float, default=1e-4)
-    p.add_argument("--sched", default="cosine", choices=["cosine", "plateau", "none"],
-                   help="plateau = halve the lr after 3 epochs without val improvement")
+    p.add_argument(
+        "--sched",
+        default="cosine",
+        choices=["cosine", "plateau", "none"],
+        help="plateau = halve the lr after 3 epochs without val improvement",
+    )
     p.add_argument("--init", default="", help="start from these weights (a .pth state dict) instead of random")
-    p.add_argument("--early-stop", type=int, default=0, help="stop after N epochs without val gain > --min-delta; 0 = off")
+    p.add_argument(
+        "--early-stop", type=int, default=0, help="stop after N epochs without val gain > --min-delta; 0 = off"
+    )
     p.add_argument("--min-delta", type=float, default=0.0005)
     p.add_argument("--dice-weight", type=float, default=1.0, help="L = BCE + w * softDice")
     p.add_argument("--seed", type=int, default=0)
@@ -118,13 +124,20 @@ def main():
     if args.init:
         model.load_state_dict(torch.load(args.init, map_location=device), strict=True)
         print("init weights:", args.init)
+
     # EMA: a running average of the weights, validated and saved instead of the raw weights
     ema = AveragedModel(model, multi_avg_fn=get_ema_multi_avg_fn(args.ema), use_buffers=True) if args.ema else None
     eval_model = ema.module if ema else model
+
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
     cosine = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs) if args.sched == "cosine" else None
-    plateau = (torch.optim.lr_scheduler.ReduceLROnPlateau(opt, mode="max", factor=0.5, patience=3, min_lr=1e-6)
-               if args.sched == "plateau" else None)
+
+    plateau = (
+        torch.optim.lr_scheduler.ReduceLROnPlateau(opt, mode="max", factor=0.5, patience=3, min_lr=1e-6)
+        if args.sched == "plateau"
+        else None
+    )
     loss_fn = make_loss(args.dice_weight)
     use_amp = device.type == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
@@ -171,7 +184,15 @@ def main():
         secs = time.time() - t0
         with open(log_path, "a", newline="") as f:
             csv.writer(f).writerow(
-                [epoch, f"{lr:.2e}", f"{total / n:.4f}", f"{val['all']:.4f}", f"{val['dog']:.4f}", f"{val['cat']:.4f}", f"{secs:.0f}"]
+                [
+                    epoch,
+                    f"{lr:.2e}",
+                    f"{total / n:.4f}",
+                    f"{val['all']:.4f}",
+                    f"{val['dog']:.4f}",
+                    f"{val['cat']:.4f}",
+                    f"{secs:.0f}",
+                ]
             )
         mark = ""
         if val["all"] > best:
@@ -198,10 +219,41 @@ def main():
     with open(run_log, "a", newline="") as f:
         w = csv.writer(f)
         if new:
-            w.writerow(["run", "aug", "epochs", "lr", "batch", "sched", "dice_w", "seed", "best_epoch", "val_dice", "val_dog", "val_cat", "minutes", "note"])
+            w.writerow(
+                [
+                    "run",
+                    "aug",
+                    "epochs",
+                    "lr",
+                    "batch",
+                    "sched",
+                    "dice_w",
+                    "seed",
+                    "best_epoch",
+                    "val_dice",
+                    "val_dog",
+                    "val_cat",
+                    "minutes",
+                    "note",
+                ]
+            )
         w.writerow(
-            [args.run, args.aug, args.epochs, args.lr, args.batch_size, args.sched, args.dice_weight, args.seed,
-             best_epoch, f"{best:.4f}", f"{best_val['dog']:.4f}", f"{best_val['cat']:.4f}", f"{(time.time() - t_start) / 60:.0f}", "; ".join(s for s in (args.note, stopped) if s)]
+            [
+                args.run,
+                args.aug,
+                args.epochs,
+                args.lr,
+                args.batch_size,
+                args.sched,
+                args.dice_weight,
+                args.seed,
+                best_epoch,
+                f"{best:.4f}",
+                f"{best_val['dog']:.4f}",
+                f"{best_val['cat']:.4f}",
+                f"{(time.time() - t_start) / 60:.0f}",
+                "; ".join(s for s in (args.note, stopped) if s),
+            ]
         )
     print(f"best val Dice {best:.4f} at epoch {best_epoch} -> {os.path.join(out_dir, 'best.pth')}")
 
