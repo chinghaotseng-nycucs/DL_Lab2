@@ -6,7 +6,7 @@ Result: val 0.9163 (10/7). Rerunning makes a new folder; the old one is kept.
 
     cd Lab2/reference
     python experiments/exp09_geo_from06_dice1.py              # --dry-run prints the train.py command only
-    nohup python experiments/exp09_geo_from06_dice1.py > runs/exp09.log 2>&1 &     # on a server
+    nohup python experiments/exp09_geo_from06_dice1.py >> runs/exp09.log 2>&1 &     # on a server
 """
 
 from _pipeline import run

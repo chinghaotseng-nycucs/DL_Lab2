@@ -6,7 +6,7 @@ Result: val 0.9155, early stop at epoch 41 (10/7). Rerunning makes a new folder;
 
     cd Lab2/reference
     python experiments/exp06_geo_from04_limit.py              # --dry-run prints the train.py command only
-    nohup python experiments/exp06_geo_from04_limit.py > runs/exp06.log 2>&1 &     # on a server
+    nohup python experiments/exp06_geo_from04_limit.py >> runs/exp06.log 2>&1 &     # on a server
 """
 
 from _pipeline import run

@@ -6,7 +6,7 @@ Result: val 0.9178: smoother, no higher peak (10/8). Rerunning makes a new folde
 
     cd Lab2/reference
     python experiments/exp13_geo_from08_ema.py              # --dry-run prints the train.py command only
-    nohup python experiments/exp13_geo_from08_ema.py > runs/exp13.log 2>&1 &     # on a server
+    nohup python experiments/exp13_geo_from08_ema.py >> runs/exp13.log 2>&1 &     # on a server
 """
 
 from _pipeline import run

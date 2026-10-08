@@ -6,7 +6,7 @@ Result: val 0.8950, Kaggle 0.88986 (10/5). Rerunning makes a new folder; the old
 
     cd Lab2/reference
     python experiments/exp01_none_ep30.py              # --dry-run prints the train.py command only
-    nohup python experiments/exp01_none_ep30.py > runs/exp01.log 2>&1 &     # on a server
+    nohup python experiments/exp01_none_ep30.py >> runs/exp01.log 2>&1 &     # on a server
 """
 
 from _pipeline import run

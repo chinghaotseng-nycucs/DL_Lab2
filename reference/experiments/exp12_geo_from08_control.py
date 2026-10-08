@@ -6,7 +6,7 @@ Result: val 0.9175, no gain over 08 (10/7). Rerunning makes a new folder; the ol
 
     cd Lab2/reference
     python experiments/exp12_geo_from08_control.py              # --dry-run prints the train.py command only
-    nohup python experiments/exp12_geo_from08_control.py > runs/exp12.log 2>&1 &     # on a server
+    nohup python experiments/exp12_geo_from08_control.py >> runs/exp12.log 2>&1 &     # on a server
 """
 
 from _pipeline import run

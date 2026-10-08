@@ -6,7 +6,7 @@ Result: val 0.9178: no reliable gain (10/8). Rerunning makes a new folder; the o
 
     cd Lab2/reference
     python experiments/exp15_geo_erase_from08.py              # --dry-run prints the train.py command only
-    nohup python experiments/exp15_geo_erase_from08.py > runs/exp15.log 2>&1 &     # on a server
+    nohup python experiments/exp15_geo_erase_from08.py >> runs/exp15.log 2>&1 &     # on a server
 """
 
 from _pipeline import run

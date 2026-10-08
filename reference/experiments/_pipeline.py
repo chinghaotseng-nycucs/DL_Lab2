@@ -42,6 +42,29 @@ def py(*args, capture=False):
         return r.stdout
 
 
+def acquire_lock(name):
+    """Refuse to start a second copy of an experiment that is already running on this machine: both would write
+    into the same runs/<name>/ folder (happened 10/8 with exp16). A lock left by a crashed run is ignored."""
+    path = os.path.join(RUNS, f"{name}.lock")
+    if os.path.exists(path):
+        with open(path) as f:
+            fields = f.read().split()
+        try:
+            pid = int(fields[0])
+            os.kill(pid, 0)  # signal 0 sends nothing: it only checks that the process exists
+        except (ValueError, IndexError, ProcessLookupError):
+            pass  # stale lock: that process is gone
+        except PermissionError:  # exists but belongs to another user: treat it as running
+            sys.exit(f"experiment {name} seems to be running already (pid {pid}); delete {path} if it isn't")
+        else:
+            sys.exit(f"experiment {name} is already running (pid {pid}); not starting a second copy.\n"
+                     f"If that's wrong, delete {path}")
+    os.makedirs(RUNS, exist_ok=True)
+    with open(path, "w") as f:
+        f.write(f"{os.getpid()} {platform.node()} {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+    return path
+
+
 def read_run_log():
     with open(os.path.join(RUNS, "run_log.csv")) as f:
         return [[c.strip() for c in r] for r in csv.reader(f)]  # strip: the file may be column-aligned in an editor
@@ -153,8 +176,16 @@ def run(exp):
         device_name = "Apple MPS"
     else:
         device_name = "CPU"
+    lock = acquire_lock(exp["name"])
     log(f"experiment {exp['id']} on {platform.node()} ({device_name})")
     t0 = time.time()
+    try:
+        _run_steps(exp, full, cmd, init_dir, device_name, t0)
+    finally:
+        os.remove(lock)
+
+
+def _run_steps(exp, full, cmd, init_dir, device_name, t0):
     try:
         if exp.get("prep"):
             log(f"{exp['id']}: preparation")

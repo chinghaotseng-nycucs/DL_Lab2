@@ -10,7 +10,7 @@ most often means a bad label (e.g. boxer_150), and training harder on a wrong la
 
     cd Lab2/reference
     python experiments/exp11_geo_from08_hard3.py              # --dry-run prints the train.py command only
-    nohup python experiments/exp11_geo_from08_hard3.py > runs/exp11.log 2>&1 &     # on a server
+    nohup python experiments/exp11_geo_from08_hard3.py >> runs/exp11.log 2>&1 &     # on a server
 """
 
 import csv

@@ -105,7 +105,7 @@ scp -r reference/runs/14_aug-geo_light_from08_val0.9193  server:~/DL_Lab2/refere
 cd ~/DL_Lab2/reference
 python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"   # expect: True, ... 4090
 wandb login                                     # once; or skip and sync offline runs later
-nohup python experiments/exp16_geo_light_from14_limit.py > runs/exp16.log 2>&1 &
+nohup python experiments/exp16_geo_light_from14_limit.py >> runs/exp16.log 2>&1 &
 tail -f runs/exp16.log                          # Ctrl-C stops watching, not the run
 ```
 

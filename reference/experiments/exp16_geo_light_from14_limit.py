@@ -2,11 +2,11 @@
 
 Why: 14 beat its control at every epoch and was still improving at its last epochs.
 Starts from: runs/14_*/best.pth (on a server, copy that folder first: weights are not in git)
-Result: not run yet.
+Result: val 0.9193 = no gain; early stop at epoch 12, so best.pth is run 14 (10/8, RTX 4090). geo_light has reached its limit.
 
     cd Lab2/reference
     python experiments/exp16_geo_light_from14_limit.py              # --dry-run prints the train.py command only
-    nohup python experiments/exp16_geo_light_from14_limit.py > runs/exp16.log 2>&1 &     # on a server
+    nohup python experiments/exp16_geo_light_from14_limit.py >> runs/exp16.log 2>&1 &     # on a server
 """
 
 from _pipeline import run

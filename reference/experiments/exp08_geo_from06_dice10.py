@@ -6,7 +6,7 @@ Result: val 0.9175, ahead of 09 at all 10 epochs (10/7). Rerunning makes a new f
 
     cd Lab2/reference
     python experiments/exp08_geo_from06_dice10.py              # --dry-run prints the train.py command only
-    nohup python experiments/exp08_geo_from06_dice10.py > runs/exp08.log 2>&1 &     # on a server
+    nohup python experiments/exp08_geo_from06_dice10.py >> runs/exp08.log 2>&1 &     # on a server
 """
 
 from _pipeline import run
