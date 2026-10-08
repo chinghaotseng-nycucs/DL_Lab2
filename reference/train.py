@@ -101,8 +101,10 @@ def log_examples(wb, best_path, val_ids, device):
 
 
 def soft_dice_loss(logits, mask, c=1.0):
-    # Per image, then mean over the batch, to match the mean per-image Dice
-    prob = torch.sigmoid(logits)
+    # Per image, then mean over the batch, to match the mean per-image Dice.
+    # float32: under CUDA AMP the logits are float16, whose max (65,504) is below 256 x 256 = 65,536 pixels,
+    # so a pet filling the frame would make the sum inf. On the Mac the logits are already float32 (no change).
+    prob = torch.sigmoid(logits.float())
     inter = (prob * mask).sum(dim=(1, 2, 3))
     total = prob.sum(dim=(1, 2, 3)) + mask.sum(dim=(1, 2, 3))
     return (1 - (2 * inter + c) / (total + c)).mean()
