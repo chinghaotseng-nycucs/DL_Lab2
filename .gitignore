@@ -5,9 +5,10 @@ __pycache__/
 data/
 *.pth
 
-# generated experiment outputs (runs, review sheets)
+# generated experiment outputs (runs, review sheets, hard cases from update_hard_cases.py)
 reference/runs/*
 !reference/runs/.gitkeep
 reference/review/
+reference/hard_cases/
 
 last_semester/
