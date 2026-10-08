@@ -95,7 +95,7 @@ Code goes through git; the dataset and weights are gitignored, so copy them once
 ```bash
 # on the server, once
 git clone git@github.com:chinghaotseng-nycucs/DL_Lab2.git ~/DL_Lab2      # later: cd ~/DL_Lab2 && git pull
-mkdir -p ~/DL_Lab2/reference/runs
+# (paths below assume ~/DL_Lab2; use your clone's path. git creates an empty reference/runs/)
 
 # on the Mac, inside Lab2/
 scp -r data  server:~/DL_Lab2/                  # -> DL_Lab2/data/oxford-iiit-pet, the default path (819 MB)

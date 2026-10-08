@@ -6,7 +6,8 @@ data/
 *.pth
 
 # generated experiment outputs (runs, review sheets)
-reference/runs/
+reference/runs/*
+!reference/runs/.gitkeep
 reference/review/
 
 last_semester/
