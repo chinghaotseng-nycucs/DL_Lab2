@@ -4,13 +4,15 @@ import json
 import os
 import time
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from tqdm import tqdm
 
-from common import HERE, get_device, get_split, official_val_dice, seed_everything, summarize
+from common import (HERE, dice, get_device, get_split, load_image, load_mask, official_val_dice, predict_masks,
+                    seed_everything, summarize)
 from dataset import AUGS, PetDataset
 from model import UNet
 
@@ -45,8 +47,57 @@ def parse_args():
     p.add_argument("--ema", type=float, default=0.0, help="EMA decay of the weights, e.g. 0.999; 0 = off")
     p.add_argument("--sample-weights", default="", help="CSV image_id,weight: how often each training image is drawn")
     p.add_argument("--note", default="")
+    p.add_argument("--wandb", action="store_true", help="log to Weights & Biases (offline if not logged in)")
+    p.add_argument("--wandb-project", default="DL_Lab2")
     p.add_argument("--smoke", action="store_true")
     return p.parse_args()
+
+
+# Validation images shown in W&B at the end of a run: four known failure cases (hard_cases/) and four ordinary ones.
+# All are in val_ids.txt; log_examples also skips any ID that isn't, so test images can never be loaded here.
+WANDB_EXAMPLES = ["basset_hound_191", "newfoundland_11", "shiba_inu_92", "english_setter_194",
+                  "Abyssinian_148", "scottish_terrier_23", "english_cocker_spaniel_12", "Ragdoll_166"]
+
+
+def start_wandb(args):
+    """A W&B run for this training, or None. Never blocks and never stops training:
+    logged in -> online; not logged in -> offline (upload later with `wandb sync runs/wandb/offline-run-*`)."""
+    if not args.wandb:
+        return None
+    try:
+        import wandb
+    except ImportError:
+        print("wandb is not installed (pip install wandb); training continues without it")
+        return None
+    try:
+        mode = os.environ.get("WANDB_MODE") or ("online" if wandb.login(prompt=False) else "offline")
+        run = wandb.init(project=args.wandb_project, name=args.run, config=vars(args), notes=args.note,
+                         tags=[args.aug, args.sched], dir=os.path.join(HERE, "runs"), mode=mode)
+        print(f"wandb: {mode} run {run.id}")
+        return run
+    except Exception as e:  # a logging problem must never cost a training run
+        print(f"wandb disabled: {e}")
+        return None
+
+
+def log_examples(wb, best_path, val_ids, device):
+    """Official-pipeline predictions of best.pth on WANDB_EXAMPLES, as images with true and predicted masks."""
+    import wandb
+
+    model = UNet(in_channels=3, out_channels=1).to(device)
+    model.load_state_dict(torch.load(best_path, map_location=device), strict=True)
+    model.eval()
+    ids = [i for i in WANDB_EXAMPLES if i in set(val_ids)]
+    imgs = [load_image(i) for i in ids]
+    labels = {0: "background", 1: "pet"}
+    images = []
+    for i, img, pred in zip(ids, imgs, predict_masks(model, imgs, device)):
+        gt = load_mask(i)
+        images.append(wandb.Image(np.asarray(img), caption=f"{i}  Dice {dice(pred, gt):.3f}", masks={
+            "ground_truth": {"mask_data": gt, "class_labels": labels},
+            "prediction": {"mask_data": pred, "class_labels": labels},
+        }))
+    wb.log({"examples": images})
 
 
 def soft_dice_loss(logits, mask, c=1.0):
@@ -146,6 +197,7 @@ def main():
     with open(log_path, "w", newline="") as f:
         csv.writer(f).writerow(["epoch", "lr", "train_loss", "val_dice", "val_dog", "val_cat", "seconds"])
 
+    wb = start_wandb(args)
     best, best_epoch, t_start = -1.0, 0, time.time()
     if args.init:
         # Epoch 0 = the starting weights; best.pth starts as them, so it never gets worse
@@ -155,6 +207,8 @@ def main():
         with open(log_path, "a", newline="") as f:
             csv.writer(f).writerow([0, "-", "-", f"{best:.4f}", f"{best_val['dog']:.4f}", f"{best_val['cat']:.4f}", 0])
         print(f"epoch   0 | start weights | val Dice {best:.4f} (dog {best_val['dog']:.4f}, cat {best_val['cat']:.4f})")
+        if wb:
+            wb.log({"val/dice": best, "val/dog": best_val["dog"], "val/cat": best_val["cat"], "val/best": best}, step=0)
     ref, stale, stopped = best, 0, ""
     for epoch in range(1, args.epochs + 1):
         t0 = time.time()
@@ -204,6 +258,9 @@ def main():
             f"epoch {epoch:3d} | lr {lr:.2e} | loss {total / n:.4f} | "
             f"val Dice {val['all']:.4f} (dog {val['dog']:.4f}, cat {val['cat']:.4f}) | {secs:.0f}s{mark}"
         )
+        if wb:
+            wb.log({"lr": lr, "train/loss": total / n, "val/dice": val["all"], "val/dog": val["dog"],
+                    "val/cat": val["cat"], "val/best": best, "time/epoch_s": secs}, step=epoch)
         if val["all"] > ref + args.min_delta:
             ref, stale = val["all"], 0
         else:
@@ -256,6 +313,14 @@ def main():
             ]
         )
     print(f"best val Dice {best:.4f} at epoch {best_epoch} -> {os.path.join(out_dir, 'best.pth')}")
+    if wb:
+        wb.summary.update({"best_val_dice": best, "best_epoch": best_epoch, "best_val_dog": best_val["dog"],
+                           "best_val_cat": best_val["cat"], "stopped": stopped or "ran all epochs"})
+        try:
+            log_examples(wb, os.path.join(out_dir, "best.pth"), val_ids, device)
+        except Exception as e:
+            print(f"wandb examples skipped: {e}")
+        wb.finish()
 
 
 if __name__ == "__main__":
