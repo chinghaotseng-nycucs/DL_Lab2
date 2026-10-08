@@ -5,7 +5,7 @@ Why: a one-command recipe for the best settings so far. The best model (run 14) 
 Here both are on from the first epoch, with a single smooth schedule of about the same total length.
 Compare with 18d (the same chain rebuilt on the same machine), not with run 14 from the Mac.
 Starts from: random weights
-Result: not run yet.
+Result: val 0.9223 (dog 0.9181), best so far; beats run 14 on clean val (+0.0030, CI +0.0004 to +0.0057) and stress val (+0.0038) (10/8, RTX 4090, 69 min).
 
     cd Lab2/reference
     python experiments/exp17_geo_light_dice10_ep120.py              # --dry-run prints the train.py command only
