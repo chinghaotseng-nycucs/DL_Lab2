@@ -12,8 +12,11 @@ from common import HERE
 #   -> lists/weights_v1.csv  (image_id,weight for --sample-weights)  and  lists/exclude_v1.txt  (for --exclude)
 # --weight TAG=W: training images with that characteristic (review/analysis/tags.csv) are drawn W times as often;
 #   an image with several weighted characteristics gets the largest W, not the product.
-# --decisions: the your_decision column of candidates.csv, per image: "drop" (left out), "keep" (weight 1),
-#   a number such as "0.5" (that weight; it overrides --weight), or empty (undecided: weight 1).
+# --kind FILE:KIND=W: training images whose "kind" column in FILE is KIND get weight W, e.g.
+#   --kind review/label_check/multi_animals.csv:all_labelled=0.5   (2+ pets, all labelled: focus on one main pet)
+# --decisions: the your_decision column of candidates.csv, per image: "drop" (left out), "keep" (stays in,
+#   weight unchanged), a number such as "0.5" (that weight), or empty (undecided: stays in, weight unchanged).
+# Order: --weight first, then --kind, then --decisions; a later step overrides an earlier one for the same image.
 # lists/ is tracked by git on purpose: a run is only reproducible if its weight and exclude files are committed.
 
 OUT = os.path.join(HERE, "lists")
@@ -22,6 +25,7 @@ OUT = os.path.join(HERE, "lists")
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--weight", action="append", default=[], help="TAG=W, repeatable")
+    p.add_argument("--kind", action="append", default=[], help="FILE:KIND=W, repeatable")
     p.add_argument("--decisions", default="")
     p.add_argument("--name", required=True)
     args = p.parse_args()
@@ -37,6 +41,16 @@ def main():
         w[has] = w[has].clip(lower=float(value)) if float(value) >= 1 else w[has].clip(upper=float(value))
         print(f"{tag}: {int(has.sum())} training images x{value}")
 
+    for item in args.kind:
+        path, rule = item.rsplit(":", 1)
+        kind, value = rule.split("=")
+        kinds = pd.read_csv(path, index_col=0).kind
+        ids = [i for i in kinds.index[kinds == kind] if i in w.index]  # val IDs are skipped
+        if not ids:
+            raise SystemExit(f"no training images of kind {kind} in {path}")
+        w[ids] = float(value)
+        print(f"{kind} ({os.path.basename(path)}): {len(ids)} training images x{value}")
+
     drop = []
     if args.decisions:
         dec = pd.read_csv(args.decisions, index_col=0, dtype={"your_decision": str}).your_decision.fillna("")
@@ -46,8 +60,6 @@ def main():
                 continue
             if text == "drop":
                 drop.append(i)
-            elif text == "keep":
-                w[i] = 1.0
             elif re.fullmatch(r"[0-9.]+", text):
                 w[i] = float(text)
         print(f"decisions: {len(drop)} dropped, {int((dec != '').sum())} decided of {len(dec)} candidates")
