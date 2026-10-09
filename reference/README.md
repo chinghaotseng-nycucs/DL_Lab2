@@ -11,8 +11,15 @@ Lab2/
   reference/
     model.py                TA's model.py, byte-identical (shasum f3502c20…)
     common.py               paths, split, mask, official inference pipeline, Dice, RLE
-    dataset.py              PetDataset + augmentation presets (none / geo / geo_color / geo_light / geo_erase)
+    dataset.py              PetDataset + augmentation presets (none / geo / geo_color / geo_light / geo_erase /
+                            geo_light_cam), copy-paste, masks resized around pixel centres (--exact-masks)
     train.py                training loop; logs official val Dice every epoch, saves best.pth
+    make_init_weights.py    pretrained starting weights for --init: init/carvana_unet.pth, init/vgg13bn_encoder.pth
+    stress_eval.py          val Dice under 8 photo distortions + paired comparison of runs (and per characteristic)
+    update_hard_cases.py    hard_cases/: val images in any run's worst 10, with compare figures (git-ignored output)
+    tag_images.py           per-image features of all non_test images (photo stats, COCO detector, CLIP) -> review/
+    hard_traits.py          characteristics per image, Dice per characteristic, suspicious-label sheets -> review/
+    make_sample_weights.py  label decisions + group weights -> lists/weights_*.csv, lists/exclude_*.txt
     experiments/            one script per experiment (expNN_*.py), each runs the whole process end to end;
                             _pipeline.py holds the shared steps
     score_train.py          val-style Dice of every TRAINING image + review sheets (hard examples)
@@ -62,6 +69,10 @@ python train.py --run geo_color --aug geo_color --epochs 30
 ```
 
 Other flags: `--lr`, `--batch-size`, `--weight-decay`, `--sched cosine|plateau|none`, `--dice-weight`, `--seed`, `--workers`, `--note "..."`, plus `--init <best.pth>` (continue from saved weights), `--early-stop N` / `--min-delta`, `--ema <decay>`, `--sample-weights <csv>`, and `--wandb` / `--wandb-project` (Weights & Biases logging, below).
+
+Added 10/8: `--exclude <txt>` (training IDs to leave out, e.g. broken labels; val never changes), `--copy-paste <p>` (paste another training image's pet onto each image with chance p), `--exact-masks` (resize training masks around pixel centres like the photos; plain torchvision NEAREST samples pixel corners, which caps Dice at 0.980 instead of 0.991 after the official resize back). All default off, so runs 01–22 reproduce unchanged.
+
+`tag_images.py` and `hard_traits.py` are analysis only and need `pip install open_clip_torch scipy pandas`; the COCO detector and CLIP describe photos and never train the submitted model. Files that a training run reads (`--sample-weights`, `--exclude`) belong in `lists/`, which is committed; `review/` is git-ignored.
 
 ## Experiments: `experiments/`
 
