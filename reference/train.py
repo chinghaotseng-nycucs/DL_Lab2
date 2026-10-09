@@ -46,6 +46,11 @@ def parse_args():
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--ema", type=float, default=0.0, help="EMA decay of the weights, e.g. 0.999; 0 = off")
     p.add_argument("--sample-weights", default="", help="CSV image_id,weight: how often each training image is drawn")
+    p.add_argument("--select", default="best", choices=["best", "last"],
+                   help="which epoch becomes best.pth: best = highest clean val Dice; last = the final epoch")
+    p.add_argument("--sampler", default="weighted", choices=["weighted", "repeat"],
+                   help="how --sample-weights is applied. weighted: random draws with replacement (run 11); "
+                   "repeat: every image once per epoch like plain shuffling, weight w = shown w times on average")
     p.add_argument("--exclude", default="", help="text file of training image IDs to leave out (bad labels); "
                    "one per line, # starts a comment; val is never changed")
     p.add_argument("--copy-paste", type=float, default=0.0,
@@ -105,6 +110,25 @@ def log_examples(wb, best_path, val_ids, device):
             "prediction": {"mask_data": pred, "class_labels": labels},
         }))
     wb.log({"examples": images})
+
+
+class RepeatSampler(torch.utils.data.Sampler):
+    """Each epoch, image i appears floor(w) times, plus once more with probability w - floor(w), in shuffled order.
+    Weight 1 = exactly once per epoch, the same as shuffle=True; 0.5 = in about half of the epochs; 2 = twice.
+    Unlike WeightedRandomSampler(replacement=True), images with weight 1 are never skipped or repeated."""
+
+    def __init__(self, weights, generator):
+        self.w = torch.tensor(weights, dtype=torch.float64)
+        self.generator = generator
+
+    def __iter__(self):
+        base = self.w.floor()
+        extra = torch.rand(len(self.w), generator=self.generator, dtype=torch.float64) < (self.w - base)
+        idx = torch.repeat_interleave(torch.arange(len(self.w)), (base + extra).long())
+        return iter(idx[torch.randperm(len(idx), generator=self.generator)].tolist())
+
+    def __len__(self):
+        return int(self.w.sum().round())  # expected length; one epoch may differ by a few images
 
 
 def soft_dice_loss(logits, mask, c=1.0):
@@ -175,8 +199,12 @@ def main():
         with open(args.sample_weights) as f:
             given = {r["image_id"]: float(r["weight"]) for r in csv.DictReader(f)}
         weights = [given.get(i, 1.0) for i in train_ids]
-        sampler = WeightedRandomSampler(weights, num_samples=len(train_ids), replacement=True, generator=generator)
-        print(f"sample weights: {sum(w != 1.0 for w in weights)} images reweighted from {args.sample_weights}")
+        if args.sampler == "repeat":
+            sampler = RepeatSampler(weights, generator)
+        else:
+            sampler = WeightedRandomSampler(weights, num_samples=len(train_ids), replacement=True, generator=generator)
+        print(f"sample weights: {sum(w != 1.0 for w in weights)} images reweighted from {args.sample_weights} "
+              f"({args.sampler} sampler)")
     loader = DataLoader(
         PetDataset(train_ids, args.aug, copy_paste_p=args.copy_paste, exact_masks=args.exact_masks),
         batch_size=args.batch_size,
@@ -266,7 +294,9 @@ def main():
                 ]
             )
         mark = ""
-        if val["all"] > best:
+        # --select last: best.pth follows the latest epoch, so a short fine-tune that trades a little clean val Dice
+        # for robustness is not thrown away in favour of its starting weights (exp21/22 kept epoch 0)
+        if val["all"] > best or args.select == "last":
             best, best_epoch, best_val = val["all"], epoch, val
             # Plain state dict of the un-wrapped UNet: what the TA's strict load expects
             torch.save(eval_model.state_dict(), os.path.join(out_dir, "best.pth"))
