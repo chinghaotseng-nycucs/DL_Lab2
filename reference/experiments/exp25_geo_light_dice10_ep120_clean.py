@@ -8,7 +8,9 @@ isolates the label cleaning. --sampler repeat keeps 17's "every image once per e
 images (the default weighted sampler would draw with replacement and skip about a third each epoch). Val is never changed.
 Compare with 17 on clean val and stress val (python stress_eval.py 17 25).
 Starts from: random weights; needs lists/exclude_v1.txt and lists/weights_v1.csv (in git)
-Result: not run yet.
+Result: val 0.9200 (4090, 10/9). vs 17: clean -0.0024 (CI -0.0049 to -0.0000; last-20-epoch mean 0.9190 vs 0.9214),
+stress -0.0037. No measurable gain from the cleaning; the gap is within plausible run-to-run noise (25 also
+sees a different batch order). Training loss ended lower (0.72 vs 0.80): the model no longer fights the bad labels.
 
     cd Lab2/reference
     python experiments/exp25_geo_light_dice10_ep120_clean.py              # --dry-run prints the train.py command only

@@ -42,6 +42,7 @@ def parse_args():
     )
     p.add_argument("--min-delta", type=float, default=0.0005)
     p.add_argument("--dice-weight", type=float, default=1.0, help="L = BCE + w * softDice")
+    p.add_argument("--bce-weight", type=float, default=1.0, help="weight of the BCE term; 0 = soft Dice only")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--ema", type=float, default=0.0, help="EMA decay of the weights, e.g. 0.999; 0 = off")
@@ -141,9 +142,10 @@ def soft_dice_loss(logits, mask, c=1.0):
     return (1 - (2 * inter + c) / (total + c)).mean()
 
 
-def make_loss(dice_weight):
+def make_loss(dice_weight, bce_weight=1.0):
     bce = nn.BCEWithLogitsLoss()  # model outputs logits: no sigmoid in model.py
-    return lambda logits, mask: bce(logits, mask) + dice_weight * soft_dice_loss(logits, mask)
+    # With AdamW only the ratio of the two weights matters, not the overall scale of the loss
+    return lambda logits, mask: bce_weight * bce(logits, mask) + dice_weight * soft_dice_loss(logits, mask)
 
 
 def smoke_test(args, device):
@@ -152,7 +154,7 @@ def smoke_test(args, device):
     loader = DataLoader(PetDataset(ids, "none"), batch_size=16, shuffle=True)
     model = UNet(in_channels=3, out_channels=1).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    loss_fn = make_loss(args.dice_weight)
+    loss_fn = make_loss(args.dice_weight, args.bce_weight)
     img, mask = next(iter(loader))
     print("batch", tuple(img.shape), img.dtype, "| mask", tuple(mask.shape), mask.unique().tolist())
     img, mask = img.to(device), mask.to(device)
@@ -234,7 +236,7 @@ def main():
         if args.sched == "plateau"
         else None
     )
-    loss_fn = make_loss(args.dice_weight)
+    loss_fn = make_loss(args.dice_weight, args.bce_weight)
     use_amp = device.type == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
