@@ -46,6 +46,13 @@ def parse_args():
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--ema", type=float, default=0.0, help="EMA decay of the weights, e.g. 0.999; 0 = off")
     p.add_argument("--sample-weights", default="", help="CSV image_id,weight: how often each training image is drawn")
+    p.add_argument("--exclude", default="", help="text file of training image IDs to leave out (bad labels); "
+                   "one per line, # starts a comment; val is never changed")
+    p.add_argument("--copy-paste", type=float, default=0.0,
+                   help="chance of pasting another training image's pet onto each training image; 0 = off")
+    p.add_argument("--exact-masks", action="store_true",
+                   help="resize training masks around pixel centres (NEAREST_EXACT) like the photos; "
+                   "off = torchvision's NEAREST, as in runs 01-22")
     p.add_argument("--note", default="")
     p.add_argument("--wandb", action="store_true", help="log to Weights & Biases (offline if not logged in)")
     p.add_argument("--wandb-project", default="DL_Lab2")
@@ -152,6 +159,14 @@ def main():
         json.dump(vars(args), f, indent=2)
 
     train_ids, val_ids = get_split()
+    if args.exclude:
+        with open(args.exclude) as f:
+            drop = {line.split("#")[0].strip() for line in f} - {""}
+        n_before = len(train_ids)
+        train_ids = [i for i in train_ids if i not in drop]
+        ignored = drop & set(val_ids)  # val stays the same for every run, so listed val IDs are ignored
+        print(f"exclude: {n_before - len(train_ids)} training images left out ({args.exclude})"
+              + (f"; {len(ignored)} val IDs in the list ignored" if ignored else ""))
     print(f"train {len(train_ids)} | val {len(val_ids)} | aug {args.aug}")
     generator = torch.Generator().manual_seed(args.seed)
     sampler = None
@@ -163,7 +178,7 @@ def main():
         sampler = WeightedRandomSampler(weights, num_samples=len(train_ids), replacement=True, generator=generator)
         print(f"sample weights: {sum(w != 1.0 for w in weights)} images reweighted from {args.sample_weights}")
     loader = DataLoader(
-        PetDataset(train_ids, args.aug),
+        PetDataset(train_ids, args.aug, copy_paste_p=args.copy_paste, exact_masks=args.exact_masks),
         batch_size=args.batch_size,
         shuffle=sampler is None,
         sampler=sampler,

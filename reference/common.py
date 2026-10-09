@@ -63,10 +63,14 @@ def load_image(image_id):
     return Image.open(os.path.join(DATA_ROOT, "images", f"{image_id}.jpg")).convert("RGB")
 
 
+def load_trimap(image_id):
+    # 1 = pet, 2 = background, 3 = boundary
+    return np.array(Image.open(os.path.join(DATA_ROOT, "annotations", "trimaps", f"{image_id}.png")))
+
+
 def load_mask(image_id):
     # Trimap: 1 = pet, 2 = background, 3 = boundary. Only 1 is foreground.
-    trimap = np.array(Image.open(os.path.join(DATA_ROOT, "annotations", "trimaps", f"{image_id}.png")))
-    return (trimap == 1).astype(np.uint8)
+    return (load_trimap(image_id) == 1).astype(np.uint8)
 
 
 def preprocess(img):
