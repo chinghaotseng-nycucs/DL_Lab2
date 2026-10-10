@@ -18,8 +18,10 @@ from model import UNet
 # If review/analysis/tags.csv exists (hard_traits.py), it also prints the difference per hard characteristic.
 
 KINDS = ["clean", "dark", "bright", "low_contrast", "warm_cast", "jpeg", "low_res", "noise", "blur"]
-TAGS = ["small_pet", "label_in_pieces", "person_touching", "blanket_or_cushion", "plush_toy_detected", "camouflage",
-        "in_snow", "over_exposed", "low_resolution", "hairless_breed"]
+TAGS = ["small_pet", "label_in_pieces", "person_touching", "blanket_or_cushion", "plush_toy_detected", "with_plush_toy",
+        "wearing_clothes", "camouflage", "in_snow", "over_exposed", "low_resolution", "hairless_breed"]
+# the rare hard groups drawn twice as often in lists/weights_v2.csv (exp33); also reported together
+UPWEIGHTED = ["blanket_or_cushion", "with_plush_toy", "plush_toy_detected", "wearing_clothes", "in_snow"]
 
 
 def corrupt(img, kind, image_id):
@@ -123,6 +125,9 @@ def main():
                 if m.sum() >= 3:
                     lo, hi = ci(d[m])
                     print(f"    {tag:<22} n={int(m.sum()):>3}  {d[m].mean():+.4f}  [{lo:+.4f}, {hi:+.4f}]")
+            m = (t[UPWEIGHTED] == 1).any(axis=1).to_numpy()
+            lo, hi = ci(d[m])
+            print(f"    {'any x2 group (exp33)':<22} n={int(m.sum()):>3}  {d[m].mean():+.4f}  [{lo:+.4f}, {hi:+.4f}]")
 
 
 if __name__ == "__main__":

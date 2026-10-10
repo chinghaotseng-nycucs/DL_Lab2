@@ -47,6 +47,9 @@ def parse_args():
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--ema", type=float, default=0.0, help="EMA decay of the weights, e.g. 0.999; 0 = off")
     p.add_argument("--sample-weights", default="", help="CSV image_id,weight: how often each training image is drawn")
+    p.add_argument("--all-data", action="store_true",
+                   help="final model: train on train + val (all non_test images). Val is still scored every "
+                   "epoch, but those photos are now in training, so the val Dice is optimistic; use with --select last")
     p.add_argument("--select", default="best", choices=["best", "last"],
                    help="which epoch becomes best.pth: best = highest clean val Dice; last = the final epoch")
     p.add_argument("--sampler", default="weighted", choices=["weighted", "repeat"],
@@ -193,6 +196,10 @@ def main():
         ignored = drop & set(val_ids)  # val stays the same for every run, so listed val IDs are ignored
         print(f"exclude: {n_before - len(train_ids)} training images left out ({args.exclude})"
               + (f"; {len(ignored)} val IDs in the list ignored" if ignored else ""))
+    if args.all_data:
+        n_val = len(val_ids)
+        train_ids = train_ids + val_ids  # the --exclude list holds training IDs only, so nothing is removed here
+        print(f"all data: the {n_val} val images are added to training; the val Dice below is NOT a fair score")
     print(f"train {len(train_ids)} | val {len(val_ids)} | aug {args.aug}")
     generator = torch.Generator().manual_seed(args.seed)
     sampler = None

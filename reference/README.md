@@ -12,7 +12,8 @@ Lab2/
     model.py                TA's model.py, byte-identical (shasum f3502c20…)
     common.py               paths, split, mask, official inference pipeline, Dice, RLE
     dataset.py              PetDataset + augmentation presets (none / geo / geo_color / geo_light / geo_erase /
-                            geo_light_cam), copy-paste, masks resized around pixel centres (--exact-masks)
+                            geo_light_cam / geo_light_cam_mild; geo_light_rc / geo_light_cam_rc add texture
+                            augmentation, RandConv), copy-paste, masks resized around pixel centres (--exact-masks)
     train.py                training loop; logs official val Dice every epoch, saves best.pth
     make_init_weights.py    pretrained starting weights for --init: init/carvana_unet.pth, init/vgg13bn_encoder.pth
     stress_eval.py          val Dice under 8 photo distortions + paired comparison of runs (and per characteristic)

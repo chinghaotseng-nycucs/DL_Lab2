@@ -93,6 +93,11 @@ def write_result(exp, cmd, init_dir, device_name):
         "| Metric | Value |",
         "|---|---|",
     ]
+    with open(os.path.join(RUNS, run, "config.json")) as f:
+        if json.load(f).get("all_data"):
+            lines[5:5] = ["**Trained on train + val (--all-data): the val photos were in training, so every val Dice "
+                          "below is optimistic, not a fair score. Judge this model by its recipe and the Kaggle "
+                          "score.**", ""]
     if init_dir:
         lines.append(f"| Starting val Dice (epoch 0 = run {os.path.basename(init_dir)}) | {epochs[0]['val_dice']} |")
     lines += [

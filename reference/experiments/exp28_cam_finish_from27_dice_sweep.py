@@ -8,7 +8,10 @@ the same order with the same augmentation: the differences between them come fro
 Each: aug geo_light_cam, lr 1e-4 cosine, cleaned labels (lists/*_v1, repeat sampler), final epoch kept.
 Compare each with 28b (python stress_eval.py 28b 28a 28c 28d) and 28b with 27 (python stress_eval.py 27 28b).
 Starts from: runs/27_*/best.pth (run exp27 first, on the same machine); about 11 min per stage on the RTX 4090
-Result: not run yet.
+Result (4090, 10/9): the loss ratio makes no difference here. Clean val 28a/b/c/d = 0.9196/0.9197/0.9197/0.9196, stress
+0.9057/0.9057/0.9056/0.9055; every variant within 0.0006 of 28b on every distortion, although the weights were
+applied (training loss 0.31/0.76/1.99/0.60) and the models differ. 28b vs 27: clean -0.0039 (CI -0.0060 to -0.0019),
+stress +0.0258 (0.906, best so far; blur 0.768 -> 0.886, low_res +0.043, jpeg +0.028, noise +0.024).
 
 Each stage gets its own folder, RESULT.md and W&B run. If a stage fails, the script stops there; rerunning it starts
 again at 28a (finished stages are kept as separate folders).

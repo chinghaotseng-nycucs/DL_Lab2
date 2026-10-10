@@ -133,7 +133,50 @@ AUGS = {
         v2.RandomApply([v2.JPEG(quality=(15, 90))], p=0.2),  # messaging-app compression
         NoiseImageOnly(p=0.2),  # dark-room sensor noise
     ],
+    # the same camera effects at half the chance (p 0.1 each): less clean val cost, hopefully most of the robustness
+    "geo_light_cam_mild": [
+        v2.RandomResizedCrop((SIZE, SIZE), scale=(0.5, 1.0), antialias=True),
+        v2.RandomHorizontalFlip(),
+        v2.RandomRotation((-15, 15)),
+        v2.ColorJitter(brightness=0.4, contrast=0.4),
+        v2.RandomApply([v2.GaussianBlur(kernel_size=9, sigma=(0.1, 3.0))], p=0.1),
+        v2.RandomApply([v2.JPEG(quality=(15, 90))], p=0.1),
+        NoiseImageOnly(p=0.1),
+    ],
 }
+
+
+class RandConvImageOnly:
+    """Random convolution (RandConv, Xu et al., ICLR 2021) on the normalised image only; the mask is untouched.
+    With probability p the image goes through a 3 -> 3 channel convolution with random weights, freshly drawn each
+    time (kernel size 1, 3, 5 or 7; weights ~ N(0, 1 / (3 k^2))). A random filter keeps outlines and shapes but
+    scrambles colours and fine texture, so the model has to recognise the pet by shape rather than fur texture.
+    The result is rescaled per channel to the input's mean and std (so it stays in the normalised range) and blended
+    with the original, x' = a x + (1 - a) conv(x), a ~ U(0, 1), the paper's mixing variant."""
+
+    def __init__(self, p=0.5, kernel_sizes=(1, 3, 5, 7)):
+        self.p, self.kernel_sizes = p, kernel_sizes
+
+    def __call__(self, img, mask):
+        if torch.rand(1).item() >= self.p:
+            return img, mask
+        k = self.kernel_sizes[torch.randint(len(self.kernel_sizes), (1,)).item()]
+        w = torch.randn(3, 3, k, k) / (3 * k * k) ** 0.5
+        y = F.conv2d(img.as_subclass(torch.Tensor)[None], w, padding=k // 2)[0]
+        mean, std = img.mean(dim=(1, 2), keepdim=True), img.std(dim=(1, 2), keepdim=True)
+        y = (y - y.mean(dim=(1, 2), keepdim=True)) / (y.std(dim=(1, 2), keepdim=True) + 1e-6) * std + mean
+        a = torch.rand(1).item()
+        return tv_tensors.wrap(a * img + (1 - a) * y, like=img), mask
+
+
+# aug name -> extra steps after ToDtype/Normalize (they work on the normalised float image)
+POST = {
+    # geo_light + random texture: against fabric, bark and toys taken for fur, and hairless pets missed
+    "geo_light_rc": [RandConvImageOnly(p=0.5)],
+    "geo_light_cam_rc": [RandConvImageOnly(p=0.5)],
+}
+AUGS["geo_light_rc"] = AUGS["geo_light"]
+AUGS["geo_light_cam_rc"] = AUGS["geo_light_cam"]
 
 
 def exact_masks(step):
@@ -153,6 +196,7 @@ def build_transform(aug, exact=False):
             v2.ToDtype(torch.float32, scale=True),  # images only; the mask stays uint8
             v2.Normalize(MEAN, STD),
         ]
+        + POST.get(aug, [])
     )
 
 
