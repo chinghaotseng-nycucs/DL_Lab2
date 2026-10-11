@@ -17,7 +17,10 @@ Adopt it for the final model (exp31 WEIGHTS = lists/weights_v2.csv) if the 31 va
 Compare: python stress_eval.py 27 33
 Starts from: random weights; needs lists/exclude_v1.txt and lists/weights_v2.csv (in git)
 about 1 h 55 min on the RTX 4090, on the same machine as 27
-Result: not run yet.
+Result: val 0.9256 (4090, 10/11; ran alongside 32, 219 min). Not adopted: the targeted photos did not clearly improve.
+vs 27: the 31 val photos in the x2 groups +0.0080 (CI -0.0017 to +0.0184, includes 0), clean +0.0021 (CI -0.0005 to
++0.0050), last-20-epoch mean 0.9250 vs 0.9224, stress -0.0017 (jpeg -0.010, CI below 0). Side effects: small pets
++0.040 (CI above 0, not targeted), hairless breeds -0.020. exp32's ImageNet start helped the same photos more (+0.030).
 
     cd Lab2/reference
     python experiments/exp33_hard_groups_x2_ep200_clean.py              # --dry-run prints the train.py command only

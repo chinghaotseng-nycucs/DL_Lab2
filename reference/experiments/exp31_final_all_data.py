@@ -1,14 +1,16 @@
 """Experiment 31: the final model, trained on all non_test images (train + val), in two stages.
 
-Why: the recipe was chosen on the 90/10 split (runs 17-30). The final model uses the same recipe on all 6,651 non_test
+Why: the recipe was chosen on the 90/10 split (runs 17-34). The final model uses the same recipe on all 6,651 non_test
 images (+11% data, minus the 39 dropped labels). Its val Dice is NOT a fair score (the val photos are in training),
 so the model is judged by its recipe and the Kaggle score. Both stages keep the final epoch (--select last).
-  31a  run 27's recipe: geo_light, dice 10, 200 epochs from scratch, cleaned labels       (about 2 h on the RTX 4090)
-  31b  31a + an 18-epoch mild camera finish (FINISH_AUG below), as exp30                (about 11 min)
-Submit 31a if you choose the best clean model, 31b if you choose the robust one.
-Set the switches below from exp32 and exp33 before running: IMAGENET_START = True if exp32 wins (31a then starts from
-init/vgg13bn_encoder.pth), WEIGHTS = "lists/weights_v2.csv" if exp33 wins.
-Starts from: random weights or init/vgg13bn_encoder.pth; needs lists/exclude_v1.txt and the WEIGHTS file (in git)
+  31a  run 32's recipe: ImageNet VGG13-BN encoder start, geo_light, dice 10, 200 epochs, cleaned labels
+                                                                                         (about 2 h on the RTX 4090)
+  31b  31a + an 18-epoch mild camera finish (FINISH_AUG below), as exp30 and exp34      (about 11 min)
+Submit 31b if exp34 (the same finish on 32) is worth it on 32, otherwise 31a.
+Switches set 10/11: IMAGENET_START = True (exp32 beat 27: clean +0.0078, stress +0.0173); WEIGHTS stays
+lists/weights_v1.csv (exp33's x2 groups: +0.008 on those photos, CI includes 0).
+Starts from: init/vgg13bn_encoder.pth (the prep step makes it if missing); needs lists/exclude_v1.txt and the WEIGHTS
+file (in git)
 Result: not run yet.
 
 Each stage gets its own folder, RESULT.md and W&B run. If a stage fails, the script stops there.
@@ -21,8 +23,8 @@ Each stage gets its own folder, RESULT.md and W&B run. If a stage fails, the scr
 from _pipeline import run
 
 FINISH_AUG = "geo_light_cam_mild"  # camera effects at p 0.1: exp30 had 29d's robustness for half the clean cost
-IMAGENET_START = False  # True if exp32 (ImageNet encoder start) beats 27
-WEIGHTS = "lists/weights_v1.csv"  # "lists/weights_v2.csv" if exp33 (blankets, toys, clothes, snow x2) beats 27
+IMAGENET_START = True  # exp32 (ImageNet encoder start) beat 27; False = random start, as 27
+WEIGHTS = "lists/weights_v1.csv"  # exp33's lists/weights_v2.csv (blankets, toys, clothes, snow x2) did not pass
 
 CLEAN = ["--exclude", "lists/exclude_v1.txt", "--sample-weights", WEIGHTS, "--sampler", "repeat",
          "--all-data", "--select", "last", "--dice-weight", "10"]
@@ -40,7 +42,8 @@ STAGES = [
     {
         "id": "31a",
         "name": "31a_final_all_data_ep200",
-        "title": "final base: run 27's recipe on train + val (geo_light, dice 10, 200 epochs, cleaned labels)",
+        "title": f"final base: run {'32' if IMAGENET_START else '27'}'s recipe on train + val "
+                 f"({'ImageNet start, ' if IMAGENET_START else ''}geo_light, dice 10, 200 epochs, cleaned labels)",
         "prep": prep,
         "train_args": ["--aug", "geo_light", "--epochs", "200", "--lr", "1e-3", "--sched", "cosine"] + CLEAN + START,
         "chain": ["31"],
