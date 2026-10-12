@@ -9,7 +9,10 @@ Decide (set before the run): submit 31b if 34 - 32 is at least +0.010 on stress 
 otherwise submit 31a.
 Compare: python stress_eval.py 32 34
 Starts from: runs/32_*/best.pth; about 11 min on the RTX 4090, 35 min on the Mac
-Result: not run yet.
+Result: val 0.9300 (4090, 10/11, 11 min), stress 0.9152, the most robust model so far. Passes the rule: submit 31b.
+vs 32: clean -0.0014 (CI -0.0028 to +0.0000), stress +0.0179 (CI +0.0152 to +0.0207): blur +0.068, JPEG +0.032,
+low resolution +0.030, noise +0.020; lighting slightly lower (bright -0.003, dark -0.001). With TTA (the Kaggle CSV):
+0.9374 vs 32's 0.9394.
 
     cd Lab2/reference
     python experiments/exp34_mild_camera_finish_from32.py              # --dry-run prints the train.py command only

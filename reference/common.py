@@ -3,6 +3,7 @@ import random
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 import torchvision.transforms.functional as TF
 from PIL import Image
 
@@ -14,6 +15,9 @@ VAL_IDS_PATH = os.path.join(HERE, "val_ids.txt")
 
 SIZE = 256
 MEAN, STD = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+# Test-time augmentation sizes, chosen on val with run 32 (10/11): mirrored + these sizes gave +0.0080 over the
+# official pipeline (0.9314 -> 0.9394); adding 224 did not help
+TTA_SIZES = (256, 288, 320, 352)
 
 
 def seed_everything(seed):
@@ -93,19 +97,37 @@ def predict_masks(model, imgs, device):
     return masks
 
 
+@torch.no_grad()
+def predict_masks_tta(model, imgs, device, sizes=TTA_SIZES):
+    """Test-time augmentation, for the Kaggle CSV only: the TA's private evaluation always runs predict_masks.
+    Each photo is squashed to every size in sizes and predicted as is and mirrored; the probability maps are mirrored
+    back, resized to the original size (bilinear), averaged, then thresholded at 0.5. Same output format as
+    predict_masks. Larger sizes make pets look as big as in the training crops, which zoom in."""
+    total = [torch.zeros(1, img.size[1], img.size[0]) for img in imgs]  # (1, h, w) per photo
+    for s in sizes:
+        x = torch.stack([TF.normalize(TF.to_tensor(TF.resize(img, [s, s])), MEAN, STD) for img in imgs]).to(device)
+        prob = (torch.sigmoid(model(x)) + torch.sigmoid(model(x.flip(-1))).flip(-1)) / 2
+        for k, img in enumerate(imgs):
+            w, h = img.size
+            total[k] += F.interpolate(prob[k : k + 1], size=(h, w), mode="bilinear", align_corners=False)[0].cpu()
+    return [(t[0] / len(sizes) > 0.5).numpy().astype(np.uint8) for t in total]
+
+
 def dice(pred, gt):
     total = pred.sum() + gt.sum()
     # Both empty: treat as perfect. Never happens on Oxford, may on the TA's photos.
     return 1.0 if total == 0 else 2.0 * float((pred * gt).sum()) / float(total)
 
 
-def official_val_dice(model, ids, device, batch_size=16):
-    """Mean per-image Dice at the original size, exactly like the TA. Returns {id: dice}."""
+def official_val_dice(model, ids, device, batch_size=16, tta=False):
+    """Mean per-image Dice at the original size, exactly like the TA. Returns {id: dice}.
+    tta=True scores predict_masks_tta instead (what the Kaggle CSV uses with predict.py --tta, not what the TA runs)."""
     model.eval()
     scores = {}
+    predict = predict_masks_tta if tta else predict_masks
     for start in range(0, len(ids), batch_size):
         chunk = ids[start : start + batch_size]
-        preds = predict_masks(model, [load_image(i) for i in chunk], device)
+        preds = predict(model, [load_image(i) for i in chunk], device)
         for i, pred in zip(chunk, preds):
             scores[i] = dice(pred, load_mask(i))
     return scores

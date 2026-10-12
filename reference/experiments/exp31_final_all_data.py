@@ -6,12 +6,15 @@ so the model is judged by its recipe and the Kaggle score. Both stages keep the 
   31a  run 32's recipe: ImageNet VGG13-BN encoder start, geo_light, dice 10, 200 epochs, cleaned labels
                                                                                          (about 2 h on the RTX 4090)
   31b  31a + an 18-epoch mild camera finish (FINISH_AUG below), as exp30 and exp34      (about 11 min)
-Submit 31b if exp34 (the same finish on 32) is worth it on 32, otherwise 31a.
+Submit 31b if exp34 (the same finish on 32) is worth it on 32, otherwise 31a. Decided 10/11: 31b (exp34 vs 32:
+stress +0.018 for clean -0.001).
 Switches set 10/11: IMAGENET_START = True (exp32 beat 27: clean +0.0078, stress +0.0173); WEIGHTS stays
 lists/weights_v1.csv (exp33's x2 groups: +0.008 on those photos, CI includes 0).
 Starts from: init/vgg13bn_encoder.pth (the prep step makes it if missing); needs lists/exclude_v1.txt and the WEIGHTS
 file (in git)
-Result: not run yet.
+Result (4090, 10/11-12; 131 + 12 min): val 0.9551 (31a) and 0.9542 (31b), NOT fair: the val photos were in training.
+Kaggle public with TTA: 31b 0.93225, above 34's 0.93070 (same recipe on the 90/10 split), so the extra data helped.
+31b is the submitted model (DL_Lab2_315551118_曾敬豪.pth).
 
 Each stage gets its own folder, RESULT.md and W&B run. If a stage fails, the script stops there.
 

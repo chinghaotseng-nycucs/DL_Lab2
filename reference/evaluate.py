@@ -7,12 +7,14 @@ from model import UNet
 
 # python evaluate.py --weights runs/baseline/best.pth
 # Official-style val Dice (original size, nearest upsampling) plus the worst images.
+# --tta: the same with test-time augmentation (what predict.py --tta writes for Kaggle; not what the TA runs).
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--weights", required=True)
     p.add_argument("--worst", type=int, default=10)
+    p.add_argument("--tta", action="store_true", help="score common.predict_masks_tta instead of the official pass")
     args = p.parse_args()
 
     device = get_device()
@@ -20,9 +22,9 @@ def main():
     model.load_state_dict(torch.load(args.weights, map_location=device), strict=True)
 
     _, val_ids = get_split()
-    scores = official_val_dice(model, val_ids, device)
+    scores = official_val_dice(model, val_ids, device, tta=args.tta)
     s = summarize(scores)
-    print(f"val Dice {s['all']:.4f} | dog {s['dog']:.4f} | cat {s['cat']:.4f} | n={len(scores)}")
+    print(("TTA " if args.tta else "") + f"val Dice {s['all']:.4f} | dog {s['dog']:.4f} | cat {s['cat']:.4f} | n={len(scores)}")
     print(f"worst {args.worst}:")
     for i, d in sorted(scores.items(), key=lambda kv: kv[1])[: args.worst]:
         print(f"  {d:.4f}  {i}")

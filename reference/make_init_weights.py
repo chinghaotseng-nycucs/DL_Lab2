@@ -51,6 +51,7 @@ def vgg13bn_encoder_into(unet_sd, vgg):
 
 
 def make_carvana():
+    os.makedirs(OUT, exist_ok=True)  # init/ is not in git or the zip
     path = os.path.join(OUT, "carvana_unet.pth")
     if not os.path.exists(path):
         raw = os.path.join(OUT, os.path.basename(CARVANA_URL))
@@ -65,6 +66,7 @@ def make_carvana():
 def make_vgg13bn():
     from torchvision.models import VGG13_BN_Weights, vgg13_bn
 
+    os.makedirs(OUT, exist_ok=True)  # init/ is not in git or the zip
     path = os.path.join(OUT, "vgg13bn_encoder.pth")
     if not os.path.exists(path):
         torch.manual_seed(0)

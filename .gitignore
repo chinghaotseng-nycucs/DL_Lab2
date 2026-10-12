@@ -12,3 +12,7 @@ reference/review/
 reference/hard_cases/
 
 last_semester/
+
+# hand-in folder (weights, summary, code zip, Kaggle CSV)
+handin/
+handin_examine/
